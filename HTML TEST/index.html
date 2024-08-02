@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Airbnb Listings</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .filter {
+            margin-bottom: 20px;
+        }
+        
+        .filter label {
+            margin-right: 10px;
+        }
+        
+        .filter input,
+        .filter select {
+            margin-right: 10px;
+        }
+        
+        .filter button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        
+        .filter button:hover {
+            background-color: #0056b3;
+        }
+        
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="filter">
+        <label for="city">City:</label>
+        <select id="city">
+            <option value="Amsterdam">Amsterdam</option>
+            <option value="Barcelona">Barcelona</option>
+            <option value="Berlin">Berlin</option>
+            <option value="Brussels">Brussels</option>
+            <option value="NYC" selected>New York City</option>
+            <option value="Rome">Rome</option>
+            <option value="Sydney">Sydney</option>
+            <option value="Tokyo">Tokyo</option>
+        </select>
+        <label for="min-rating">Minimum Rating:</label>
+        <input type="number" id="min-rating" step="0.1" min="0" max="5" placeholder="Min Rating">
+        <label for="min-reviews">Minimum Reviews:</label>
+        <input type="number" id="min-reviews" min="0" placeholder="Min Reviews">
+        <label for="min-price">Minimum Price:</label>
+        <input type="number" id="min-price" min="0" placeholder="Min Price">
+        <label for="max-price">Maximum Price:</label>
+        <input type="number" id="max-price" min="0" placeholder="Max Price">
+        <button onclick="fetchListings()">Fetch Listings</button>
+        <div class="error" id="error-message"></div>
+    </div>
+    <div class="container" id="listings-container">
+        <!-- Listings will be inserted here by JavaScript -->
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchListings(true); // Fetch default listings on page load
+        });
+
+        const minPriceInput = document.getElementById('min-price');
+        const maxPriceInput = document.getElementById('max-price');
+        const errorMessage = document.getElementById('error-message');
+
+        minPriceInput.addEventListener('input', function() {
+            maxPriceInput.min = minPriceInput.value;
+        });
+
+        function fetchListings(defaultLoad = false) {
+            const city = document.getElementById('city').value;
+            const minRating = document.getElementById('min-rating').value;
+            const minReviews = document.getElementById('min-reviews').value;
+            const minPrice = document.getElementById('min-price').value;
+            const maxPrice = document.getElementById('max-price').value;
+
+            // Clear any previous error message
+            errorMessage.textContent = '';
+
+            // Basic validation
+            if (!defaultLoad) {
+                if (minPrice && maxPrice && parseFloat(minPrice) > parseFloat(maxPrice)) {
+                    errorMessage.textContent = 'Minimum price cannot be higher than maximum price.';
+                    return;
+                }
+
+                if (parseFloat(minPrice) < 0 || parseFloat(maxPrice) < 0) {
+                    errorMessage.textContent = 'Price values cannot be negative.';
+                    return;
+                }
+
+                if (parseFloat(minRating) < 0 || parseFloat(minRating) > 5) {
+                    errorMessage.textContent = 'Rating should be between 0 and 5.';
+                    return;
+                }
+
+                if (parseInt(minReviews) < 0) {
+                    errorMessage.textContent = 'Number of reviews should be a positive integer.';
+                    return;
+                }
+            }
+
+            let url = `http://127.0.0.1:5000/filter?city=${city}`;
+            if (minRating) url += `&min_rating=${minRating}`;
+            if (minReviews) url += `&min_reviews=${minReviews}`;
+            if (minPrice) url += `&min_price=${minPrice}`;
+            if (maxPrice) url += `&max_price=${maxPrice}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('listings-container');
+                    container.innerHTML = ''; // Clear previous listings
+                    if (data.error) {
+                        container.innerHTML = `<p>${data.error}</p>`;
+                    } else {
+                        data.listings.forEach(listing => {
+                            const listingDiv = document.createElement('div');
+                            listingDiv.className = 'listing';
+                            listingDiv.innerHTML = `
+                                <a href="${listing.listing_url}">
+                                    <img src="${listing.picture_url}" alt="${listing.name}">
+                                    <h3>${listing.name}</h3>
+                                    <p>${listing.place}</p>
+                                    <p>Rating: ${listing.rating}</p>
+                                    <p>${listing.number_of_reviews}</p>
+                                    <p>${listing.price}</p>
+                                </a>
+                            `;
+                            container.appendChild(listingDiv);
+                        });
+                    }
+                })
+                .catch(error => {
+                    const container = document.getElementById('listings-container');
+                    container.innerHTML = `<p>Error fetching listings: ${error.message}</p>`;
+                });
+        }
+    </script>
+</body>
+
+</html>
